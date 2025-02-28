@@ -1,0 +1,33 @@
+name: Build
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  macos:
+    runs-on: ${{matrix.os}}
+    strategy:
+      matrix:
+        include:
+#          - os: macos-13
+#            arch: x86_64
+#            brew: /usr/local
+          - os: macos-arm64
+            arch: x86_64;arm64
+            brew: /opt/homebrew
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/macos
+        id: build
+        with:
+          vvv:  "6.8.2"
+          vv:   "6.8"
+          arch: ${{matrix.arch}}
+          brew: ${{matrix.brew}}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{steps.build.outputs.fn}}
+          path: ${{steps.build.outputs.path}}

@@ -1,0 +1,52 @@
+name: macos build
+
+inputs:
+  vvv:
+    required: true
+    description: "Qt long version"
+  vv:
+    required: true
+    description: "Qt short version"
+  arch:
+    required: true
+    description: "Architecture, e.g. arm64 or x86_64"
+  brew:
+    required: true
+    description: "Location of brew installation"
+outputs:
+  fn:
+    description: "Filename"
+    value: ${{steps.build.outputs.fn}}
+  path:
+    description: "Path"
+    value: ${{steps.build.outputs.path}}
+
+runs:
+  using: composite
+  steps:
+    - id: build
+      shell: bash
+      run: |
+        wget --quiet https://download.qt.io/archive/qt/${{inputs.vv}}/${{inputs.vvv}}/single/qt-everywhere-src-${{inputs.vvv}}.tar.xz
+        tar -xf qt-everywhere-src-${{inputs.vvv}}.tar.xz
+        mv qt-everywhere-src-${{inputs.vvv}} qt
+        cd qt/qtbase
+        patch < ../../patches/7a31e402f24ec29c571f825e06bd569477501dfc.patch
+        cd ..
+        mkdir build && cd build
+        ../configure \
+          LLVM_INSTALL_DIR=${{inputs.brew}}/opt/llvm FEATURE_clang=ON \
+          -prefix "./qt${{inputs.vvv}}_debug_macos_${{inputs.arch}}" \
+          -release \
+          -debug \
+          -opensource \
+          -confirm-license \
+          -nomake examples \
+          -nomake tests \
+          -- \
+          -DCMAKE_OSX_ARCHITECTURES="${{inputs.arch}}"
+        cmake --build . --parallel "$(sysctl -n hw.ncpu)"
+        cmake --install .
+        tar -czf "qt${{inputs.vvv}}_debug_macos_${{inputs.arch}}.tar.gz" "qt${{inputs.vvv}}_debug_macos_${{inputs.arch}}"
+        echo "fn=qt${{inputs.vvv}}_debug_macos_${{inputs.arch}}.tar.gz" >> $GITHUB_OUTPUT
+        echo "path=qt/build/qt${{inputs.vvv}}_debug_macos_${{inputs.arch}}.tar.gz" >> $GITHUB_OUTPUT
